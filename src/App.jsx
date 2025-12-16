@@ -17,9 +17,13 @@ function App() {
 
   // 检查用户是否已登录并加载消息
   useEffect(() => {
-    checkUserStatus();
-    loadMessages();
+    initializeApp();
   }, []);
+
+  const initializeApp = async () => {
+    await checkUserStatus();
+    await loadMessages();
+  };
 
   const checkUserStatus = async () => {
     try {
@@ -32,9 +36,8 @@ function App() {
 
   const loadMessages = async () => {
     try {
-      // 任何人都可以读取留言（因为我们设置了 read("any") 权限）
+      // 任何人都可以读取留言
       const response = await databases.listDocuments(DATABASE_ID, MESSAGES_TABLE_ID);
-      // 按创建时间倒序排列（最新在前）
       const sortedMessages = response.documents.sort((a, b) => 
         new Date(b.$createdAt) - new Date(a.$createdAt)
       );
@@ -52,19 +55,34 @@ function App() {
 
     try {
       if (isLoginMode) {
-        // 登录 - 使用 createSession 方法
-        await account.createSession(username, password);
+        // 尝试不同的登录方法
+        try {
+          // 方法1: createEmailPasswordSession
+          await account.createEmailPasswordSession(username, password);
+        } catch (method1Error) {
+          try {
+            // 方法2: createSession
+            await account.createSession(username, password);
+          } catch (method2Error) {
+            // 方法3: createEmailSession (旧版本)
+            await account.createEmailSession(username, password);
+          }
+        }
       } else {
-        // 注册
+        // 注册新用户
         await account.create('unique()', username, password, username);
-        // 登录新创建的用户
-        await account.createSession(username, password);
+        // 登录新用户
+        try {
+          await account.createEmailPasswordSession(username, password);
+        } catch (loginError) {
+          await account.createSession(username, password);
+        }
       }
       
       await checkUserStatus();
     } catch (error) {
       console.error('Auth error:', error);
-      setError(error.message || 'Authentication failed');
+      setError(error.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -85,7 +103,6 @@ function App() {
     if (!messageContent.trim()) return;
 
     try {
-      // 正确的 createDocument 参数顺序
       await databases.createDocument(
         DATABASE_ID,
         MESSAGES_TABLE_ID,
@@ -95,15 +112,14 @@ function App() {
           userId: user.$id,
           username: user.name || user.email
         },
-        // 权限设置 - 允许任何人读取
-        ['read("any")']
+        ['read("any")'] // 允许任何人读取
       );
       
       setMessageContent('');
       loadMessages();
     } catch (error) {
       console.error('Failed to post message:', error);
-      setError('Failed to post message');
+      setError('Failed to post message. Please try again.');
     }
   };
 
