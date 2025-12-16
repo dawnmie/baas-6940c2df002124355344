@@ -43,17 +43,7 @@ function App() {
       setMessages(sortedMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
-      // 如果权限错误，尝试以游客身份加载（如果表设置了公开读取权限）
-      try {
-        const response = await databases.listDocuments(DATABASE_ID, MESSAGES_TABLE_ID);
-        const sortedMessages = response.documents.sort((a, b) => 
-          new Date(b.$createdAt) - new Date(a.$createdAt)
-        );
-        setMessages(sortedMessages);
-      } catch (guestError) {
-        console.error('Failed to load messages as guest:', guestError);
-        setMessages([]);
-      }
+      setMessages([]);
     }
   };
 
@@ -64,13 +54,13 @@ function App() {
 
     try {
       if (isLoginMode) {
-        // 登录 - 使用正确的API方法
-        await account.createEmailPasswordSession(username, password);
+        // 登录 - 尝试使用正确的API方法
+        await account.createSession(username, password);
       } else {
         // 注册
         await account.create('unique()', username, password, username);
         // 登录新创建的用户
-        await account.createEmailPasswordSession(username, password);
+        await account.createSession(username, password);
       }
       
       await checkUserStatus();
@@ -98,6 +88,7 @@ function App() {
     if (!messageContent.trim()) return;
 
     try {
+      // 正确的 createDocument 参数顺序
       await databases.createDocument(
         DATABASE_ID,
         MESSAGES_TABLE_ID,
@@ -107,9 +98,8 @@ function App() {
           userId: user.$id,
           username: user.name || user.email
         },
-        // 设置权限 - 允许任何人读取，只有创建者可以写入
-        ['read("any")'],
-        ['write("user:' + user.$id + '")']
+        // 权限设置 - 允许任何人读取
+        ['read("any")']
       );
       
       setMessageContent('');
