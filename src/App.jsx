@@ -40,6 +40,7 @@ function App() {
       setMessages(sortedMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
+      // 即使加载失败也不影响应用运行
     }
   };
 
@@ -50,12 +51,13 @@ function App() {
 
     try {
       if (isLoginMode) {
-        // 登录
-        await account.createEmailSession(username, password);
+        // 登录 - 使用正确的API方法
+        await account.createEmailPasswordSession(username, password);
       } else {
         // 注册
         await account.create('unique()', username, password, username);
-        await account.createEmailSession(username, password);
+        // 登录新创建的用户
+        await account.createEmailPasswordSession(username, password);
       }
       
       await checkUserStatus();
@@ -91,7 +93,10 @@ function App() {
           content: messageContent.trim(),
           userId: user.$id,
           username: user.name || user.email
-        }
+        },
+        // 设置权限 - 允许任何人读取，只有创建者可以写入
+        ['read("any")'],
+        ['write("user:' + user.$id + '")']
       );
       
       setMessageContent('');
