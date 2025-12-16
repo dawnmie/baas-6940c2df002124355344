@@ -15,26 +15,24 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 检查用户是否已登录
+  // 检查用户是否已登录并加载消息
   useEffect(() => {
     checkUserStatus();
+    loadMessages();
   }, []);
 
   const checkUserStatus = async () => {
     try {
       const currentUser = await account.get();
       setUser(currentUser);
-      // 用户登录后加载消息
-      loadMessages();
     } catch (error) {
       setUser(null);
     }
   };
 
   const loadMessages = async () => {
-    if (!user) return;
-    
     try {
+      // 任何人都可以读取留言（因为我们设置了 read("any") 权限）
       const response = await databases.listDocuments(DATABASE_ID, MESSAGES_TABLE_ID);
       // 按创建时间倒序排列（最新在前）
       const sortedMessages = response.documents.sort((a, b) => 
@@ -54,7 +52,7 @@ function App() {
 
     try {
       if (isLoginMode) {
-        // 登录 - 尝试使用正确的API方法
+        // 登录 - 使用 createSession 方法
         await account.createSession(username, password);
       } else {
         // 注册
@@ -77,7 +75,6 @@ function App() {
       await account.deleteSession('current');
       setUser(null);
       setMessageContent('');
-      setMessages([]);
     } catch (error) {
       console.error('Logout error:', error);
     }
