@@ -18,19 +18,22 @@ function App() {
   // 检查用户是否已登录
   useEffect(() => {
     checkUserStatus();
-    loadMessages();
   }, []);
 
   const checkUserStatus = async () => {
     try {
       const currentUser = await account.get();
       setUser(currentUser);
+      // 用户登录后加载消息
+      loadMessages();
     } catch (error) {
       setUser(null);
     }
   };
 
   const loadMessages = async () => {
+    if (!user) return;
+    
     try {
       const response = await databases.listDocuments(DATABASE_ID, MESSAGES_TABLE_ID);
       // 按创建时间倒序排列（最新在前）
@@ -40,7 +43,17 @@ function App() {
       setMessages(sortedMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
-      // 即使加载失败也不影响应用运行
+      // 如果权限错误，尝试以游客身份加载（如果表设置了公开读取权限）
+      try {
+        const response = await databases.listDocuments(DATABASE_ID, MESSAGES_TABLE_ID);
+        const sortedMessages = response.documents.sort((a, b) => 
+          new Date(b.$createdAt) - new Date(a.$createdAt)
+        );
+        setMessages(sortedMessages);
+      } catch (guestError) {
+        console.error('Failed to load messages as guest:', guestError);
+        setMessages([]);
+      }
     }
   };
 
@@ -61,7 +74,6 @@ function App() {
       }
       
       await checkUserStatus();
-      loadMessages();
     } catch (error) {
       console.error('Auth error:', error);
       setError(error.message || 'Authentication failed');
@@ -75,6 +87,7 @@ function App() {
       await account.deleteSession('current');
       setUser(null);
       setMessageContent('');
+      setMessages([]);
     } catch (error) {
       console.error('Logout error:', error);
     }
