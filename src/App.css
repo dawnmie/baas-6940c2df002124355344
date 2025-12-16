@@ -247,8 +247,3 @@ body {
     margin: 1rem auto;
   }
 }
-  background-size: 3.7em 3.7em;
-  mask-image: radial-gradient(ellipse at 50% 40%, black 0%, transparent 55%);
-  z-index: -1;
-  background-position-x: center;
-}
